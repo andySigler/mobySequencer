@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="text/javascript" src="js/sample.js"></script>
+		<script type="text/javascript" src="js/button.js"></script>
+		<style>
+			.button{
+				background-color: #767676;
+				width:18px;
+				height:18px;
+				padding:0px 0px 0px 0px;
+				margin:0px 0px 0px 0px;
+				float:left;
+				border:solid 1px #545454;
+			}
+			.button:hover{
+				border:solid 1px #dedede;
+			}
+			.divider{
+				background-color: #ababab;
+			}
+			.clicked{
+				-webkit-transition: background-color 300ms;
+				background-color: #dedede !important;
+			}
+			.play{
+				
+			}
+			.triggered{
+				-webkit-transition: background-color 3ms;
+				background-color:#9184bd !important;
+			}
+			.muteButton{
+				background-color: #efefef;
+				width:18px;
+				height:18px;
+				padding:0px 0px 0px 0px;
+				margin:1px 1px 1px 10px;
+				border-radius: 8px;
+			}
+			.previewButton{
+				background-color: green;
+				width:18px;
+				height:18px;
+				padding:0px 0px 0px 0px;
+				margin:1px 1px 1px 10px;
+				border-radius: 8px;
+			}
+			.row{
+				margin:-1px 0px 0px 0px;
+				padding:0px 0px 0px 0px;
+			}
+			.muted{
+				opacity:.3;
+			}
+			p {
+			   display: block;
+			   margin:5px 5px 5px 5px;
+			}
+			.indicator{
+				-webkit-transition: background-color 300ms;
+				background-color: #bfb9d3;
+				width:9px;
+				height:9px;
+				padding:0px 0px 0px 0px;
+				margin:10px 6px 0px 5px;
+				float:left;
+				border-radius: 5px;
+			}
+			.indicatorTriggered{
+				-webkit-transition: background-color 3ms;
+				background-color: #594c81;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="interface">
+			<input type="range" id="tempo" onChange="changeTempo(event)"></input>
+			<button id="power" onclick="power()">Off</button>
+			<button id="clear" onclick="clearMatrix()">Clear</button>
+			<div id="indicatorBar">
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+				<div class="indicator"></div>
+			</div>
+		</div>
+		<br /><br />
+		<div id="matrixDiv"></div>
+		<script type="text/javascript">
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			window.onload = init;
+
+			function init() {
+				initAudio();
+				makeSamples();
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			var isPlaying = false;
+
+			function power(){
+				isPlaying = !isPlaying;
+				if(isPlaying){
+					startSequencer();
+					document.getElementById('power').innerHTML = 'On';
+				}
+				else{
+					document.getElementById('power').innerHTML = 'Off';
+					clearTimeout(sequencer);
+					currentColumn = 0;
+					for(var i=0;i<samples.length;i++){
+						document.getElementById('indicatorBar').children[i].className = 'indicator';
+					}
+				}
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			function changeTempo(e){
+				var raw = e.srcElement.valueAsNumber;
+				raw /= 100;
+				raw = 1-raw;
+				raw = Math.pow(raw,2);
+				raw *= 600;
+				raw += 50;
+				delayTime = Math.round(raw);
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			function clearMatrix(){
+				for(var i=0;i<samples.length;i++){
+					samples[i].muted = false;
+					samples[i].row.className = 'row';
+					for(var n=0;n<samples[i].buttons.length;n++){
+						samples[i].buttons[n].on = false;
+						samples[i].buttons[n].updateClasses();
+					}
+				}
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			var sequencer = undefined;
+			var currentColumn = 0;
+			var delayTime = Math.round(Math.pow(.5,2)*600+50);
+
+			function startSequencer(){
+				var prevColumn = currentColumn-1;
+				if(prevColumn<0) prevColumn = samples.length-1;
+				document.getElementById('indicatorBar').children[currentColumn].className = 'indicator indicatorTriggered';
+				document.getElementById('indicatorBar').children[prevColumn].className = 'indicator';
+				for(var i=0;i<samples.length;i++){
+					samples[i].sequence(currentColumn,audioContext);
+				}
+				currentColumn = (currentColumn+1)%samples.length;
+
+				sequencer = setTimeout(startSequencer,delayTime);
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			var audioContext;
+
+			function initAudio(){
+				try {
+					window.AudioContext = window.AudioContext||window.webkitAudioContext;
+					audioContext = new AudioContext();
+				}
+				catch(e) {
+					alert('Web Audio API is not supported in this browser :(');
+				}
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			var samples = [];
+
+			function makeSamples(){
+				for(var i=0;i<16;i++){
+					samples[i] = new Sample(audioContext,i);
+					samples[i].loadSound();
+				}
+			}
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+			window.requestAnimFrame = (function(){
+				return  window.requestAnimationFrame       ||
+				window.webkitRequestAnimationFrame ||
+				window.mozRequestAnimationFrame    ||
+				function( callback ){
+					window.setTimeout(callback, 1000 / 60);
+				};
+			})();
+
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+			//////////////////////////////////////////
+
+		</script>
+	</body>
+</html>
